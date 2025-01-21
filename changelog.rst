@@ -1,10 +1,10 @@
 Changelog
 =========
 
-0.1.0 (2023-10-01)
+0.0.1 (2023-21-01)
 ------------------
-- **Initial release:**
-  - Basic scraping functionality.
-  - CLI interface for running the scraper.
-  - GitHub integration for creating and managing repositories.
+- **Features**
+  - Created Project readme.md
+  - Setup poetry project
+  - Setup linting with GHA CI
 
