@@ -11,6 +11,6 @@ git clone https://github.com/Egbewattnkongho13/chuchu-scrapper.git '''
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
 ```
-3. Install the project dependencies: 
+3. Install the project dependencies:
 
 ## Usage
