@@ -7,4 +7,3 @@ Changelog
   - Created Project readme.md
   - Setup poetry project
   - Setup linting with GHA CI
-
