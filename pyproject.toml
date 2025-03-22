@@ -1,18 +1,26 @@
-[project]
+[tool.poetry]
 name = "chuchu-scrapper"
 version = "0.1.0"
-description = ""
-authors = [
-    {name = "Egbewatt Nkongho",email = "egbewattnkonghob@gmail.com"}
-]
+description = "A CLI scrapper application."
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "black (>=24.10.0,<25.0.0)",
-    "isort (>=5.13.2,<6.0.0)"
+authors = [
+    "Egbewatt Nkongho <egbewattnkonghob@gmail.com>"
 ]
 
+packages = [
+    { include = "chuchu_scrapper" }
+]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
+requires = ["poetry-core==1.8"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+main = "chuchu_scrapper.scrapper:main"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+black = "^25.1.0"
+isort = "^6.0.1"
+requests = "^2.32.3"
+beautifulsoup4 = "^4.13.3"
