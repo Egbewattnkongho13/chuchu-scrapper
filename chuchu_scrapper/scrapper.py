@@ -4,6 +4,7 @@ import argparse
 from bs4 import BeautifulSoup
 import requests
 import os
+from urllib.parse import urljoin
 
 
 def parse_args():
@@ -36,7 +37,6 @@ def parse_args():
         required=True,
     )
 
-    # Add --output argument
     parser.add_argument(
         "--process",
         help="Processing mode: 'single' or 'multi'",
@@ -45,6 +45,7 @@ def parse_args():
         required=True,
     )
 
+    # Add --output argument
     parser.add_argument(
         "--output",
         help="Directory to save file (optional)",
@@ -87,6 +88,48 @@ def scrape_text(url, output_dir, use_stdout):
             print(f"Error writing file: {e}")
 
 
+def scrape_images(url, output_dir, use_stdout):
+    """Scrape images and print URLs or save files."""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching URL: {e}")
+        return
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    img_tags = soup.find_all('img')
+
+    if use_stdout:
+        """Print image URLs to CLI"""
+        print("\n=== IMAGE URLs ===")
+        for img in img_tags:
+            img_url = urljoin(url, img.get('src', ''))
+            print(img_url)
+    else:
+        if not output_dir:
+            output_dir = "./output"
+        img_dir = os.path.join(output_dir, "images")
+        os.makedirs(img_dir, exist_ok=True)
+
+        for img in img_tags:
+            img_url = urljoin(url, img.get('src', ''))
+            if not img_url:
+                continue
+
+            try:
+                img_data = requests.get(img_url, stream=True, timeout=10)
+                img_data.raise_for_status()
+                filename = os.path.basename(img_url)
+                filepath = os.path.join(img_dir, filename)
+                with open(filepath, 'wb') as f:
+                    for chunk in img_data.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                print(f"Downloaded: {filename}")
+            except Exception as e:
+                print(f"Failed to download {img_url}: {e}")
+
+
 def main():
     """Execute the main scraping workflow based on command-line arguments."""
     args = parse_args()
@@ -95,14 +138,12 @@ def main():
     print(f"Processing mode: {args.process}")
 
     if args.type == "text":
-        print(f"Scraping text content from {args.url}...")
-
+        scrape_text(args.url, args.output, args.stdout)
     elif args.type == "image":
-        print(f"Scraping image content from {args.url}...")
+        scrape_images(args.url, args.output, args.stdout)
 
     if args.process == "single":
         print("Processing in single mode...")
-
     elif args.process == "multi":
         print("Processing in multi mode...")
 
