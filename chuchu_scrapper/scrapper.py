@@ -1,82 +1,237 @@
-"""Module for scraping website data."""
+"""
+Module for collecting or 'scraping' information from websites.
+
+This module provides functionality for command-line interface
+application to extract text, images,
+and links from web pages using HTTP request and HTML parsing.
+"""
 
 import argparse
 import os
 import time
-from html.parser import HTMLParser
-from typing import Dict, List, Optional
-from urllib.parse import urljoin, urlparse
+from typing import Dict, List
+from urllib.parse import urlparse
 
 import requests
 
+from modules.myparserlib import ImageParser, LinkParser, TextParser
+
 
 def parse_args():
-    """Parse command-line arguments for the chuchu-scrapper application."""
-    parser = argparse.ArgumentParser(
-        prog="chuchu-scrapper", description="A simple CLI scrapper application."
-    )
+    """
+    Parse command line arguments for the ChuChu scraper application.
 
-    parser.add_argument("url", help="URL to scrape", type=str)
-    parser.add_argument(
-        "--type",
-        help="Type of data to scrape",
-        type=str,
-        choices=["text", "image", "all"],
-        required=True,
+    Returns:
+        argparse.Namespace: An object containing the parsed command-line arguments.
+
+    The following arguments are supported:
+        - url: URL of the website to scrape
+        - --output: Directory to save the scraped data (default: ./outputs)
+        - --type: Type of data to be scraped (choices: text, image, link, all)
+        - --stdout: Flag to print the scraped data to standard output
+    """
+    parser = argparse.ArgumentParser(
+        prog="chuchu_scrapper",
+        description="A web scraping tool for collecting information from websites.",
     )
+    parser.add_argument("url", type=str, help="URL of the website to scrape")
     parser.add_argument(
         "--output",
-        help="Directory to save files (default: ./output)",
         type=str,
-        default="./output",
+        default="./outputs",
+        help="Directory to save the scrapped data.",
     )
     parser.add_argument(
-        "--stdout", help="Print results to CLI instead of saving", action="store_true"
+        "--type",
+        type=str,
+        choices=["text", "image", "link", "all"],
+        required=True,
+        help="Type of data to be scrapped.",
+    )
+    parser.add_argument(
+        "--stdout",
+        action="store_true",
+        help="Print the scrapped data to standard output.",
     )
     return parser.parse_args()
 
 
 class ChuChuScrapper:
-    """Web scraper that handles both text and image extraction."""
+    """
+    Main worker class for the web scraper.
 
-    def __init__(
-        self,
-        user_agent: str = "ChuChuScrapper/1.0",
-        timeout: int = 10,
-        max_retries: int = 3,
-    ):
-        """Initialize the scraper with configuration options."""
+    This class handles the fetching of web content and extraction of different
+    types of data (text, images, links) from web pages.
+    """
+
+    def __init__(self, user_agent="ChuChuScrapper/1.0", timeout=10, max_retries=4):
+        """
+        Initialize the scraper with configurable parameters.
+
+        Parameters:
+            user_agent (str): User agent string to use in HTTP requests.
+            timeout (int): Timeout in seconds for HTTP requests.
+            max_retries (int): Maximum number of retry attempts for failed requests.
+        """
         self.session = requests.Session()
-        self.session.headers = {"User-Agent": user_agent}
         self.timeout = timeout
         self.max_retries = max_retries
+        self.session.headers.update({"User-Agent": user_agent})
 
-    def scrape_text(self, url: str) -> Optional[str]:
-        """Extract and return all text content from a webpage."""
-        html = self._fetch_with_retry(url)
-        if not html:
+    def scrape_text(self, url):
+        """
+        Scrape text data from the given URL.
+
+        Parameters:
+            url (str): The URL of the webpage to scrape.
+
+        Returns:
+            str or None: Extracted text content from the webpage.
+        """
+        webpage_content = self._fetch_with_retry(url)
+        if not webpage_content:
             return None
 
-        parser = self._TextParser()
-        parser.feed(html)
-        return parser.get_text()
+        textparser = TextParser()
+        textparser.feed(webpage_content)
+        return textparser.get_text()
 
-    def scrape_images(self, url: str) -> List[Dict]:
-        """Extract all images from a webpage."""
-        html = self._fetch_with_retry(url)
-        if not html:
-            return []
+    def scrape_images(self, url) -> List[Dict]:
+        """
+        Scrape image data from the given URL.
 
-        parser = self._HTMLParser(url)
-        parser.feed(html)
-        return parser.images
+        Parameters:
+            url (str): The URL of the webpage to scrape.
 
-    def download_images(self, images: List[Dict], output_dir: str) -> None:
-        """Download images to specified directory."""
+        Returns:
+            List[Dict] or None: A list of dictionaries containing image information
+                              (url, alt text, etc.).
+        """
+        webpage_content = self._fetch_with_retry(url)
+        if not webpage_content:
+            return None
+
+        imageparser = ImageParser(url)
+        imageparser.feed(webpage_content)
+        return imageparser.images
+
+    def scrape_links(self, url) -> List[Dict]:
+        """
+        Scrape links from the given URL.
+
+        Parameters:
+            url (str): The URL of the webpage to scrape.
+
+        Returns:
+            List[Dict] or None: A list of dictionaries containing link information
+                              (url and title).
+        """
+        webpage_content = self._fetch_with_retry(url)
+        if not webpage_content:
+            return None
+
+        parsed = urlparse(url)
+        base_url = f"{parsed.scheme}: //{parsed.netloc}"
+
+        linkparser = LinkParser(base_url)
+        linkparser.feed(webpage_content)
+        return linkparser.get_links()
+
+    def format_links_report(self, links: list) -> str:
+        """
+        Format links into a numbered report style.
+
+        Parameters:
+            links (List[Dict]): A list of link dictionaries to format.
+
+        Returns:
+            str: A formatted string containing the links report.
+        """
+        report = []
+        for i, link in enumerate(links, 1):
+            report.append(
+                f"LINK {i}\n"
+                f"URL: {link['url']}\n"
+                f"Anchor: {link.get('title', '')}\n"
+                f"{'-'*40}"
+            )
+        return "\n".join(report)
+
+    def _fetch_with_retry(self, url):
+        """
+        Fetch the webpage content with retry logic.
+
+        Parameters:
+            url (str): The URL to fetch content from.
+
+        Returns:
+            str or None: The HTML content of the webpage as text, or None if all
+                        retry attempts failed or if the response is not HTML.
+
+        This method implements exponential backoff for retries.
+        """
+        for attempt in range(self.max_retries):
+            try:
+                response = self.session.get(url, timeout=self.timeout)
+                response.raise_for_status()
+                if "text/html" not in response.headers.get("Content-Type", ""):
+                    print(f"URL {url} does not contain HTML content.")
+                    return None
+                return response.text
+            except requests.exceptions.RequestException as e:
+                if attempt < self.max_retries - 1:
+                    print(f"Attempt {attempt + 1} failed: {e}. Retrying...")
+                    time.sleep(2**attempt)
+                else:
+                    print(
+                        f"""Failed to fetch {url} after {self.max_retries}
+                    attempts: {e}"""
+                    )
+                    return None
+
+    def save_text(self, content: str, output_dir: str):
+        """
+        Save the scraped text content to a file.
+
+        Parameters:
+            content (str): Text content to save.
+            output_dir (str): Directory to save the file.
+
+        Returns:
+            str: Path to the saved file.
+
+        This method creates the output directory if it doesn't exist.
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        filepath = os.path.join(output_dir, "scraped_text.txt")
+        with open(filepath, "w", encoding="utf-8") as file:
+            file.write(content)
+        print(f"Text saved to {filepath}")
+
+    def download_images(self, parser_images: list, output_dir: str):
+        """
+        Download images from parser results to the specified directory.
+
+        Parameters:
+            parser_images (List[Dict]): List of image dictionaries
+                                         from HTMLParser.images
+                              (format: [{"url": str, "alt": str, ...}])
+            output_dir (str): Target directory path.
+
+        This method creates the output directory and an "images"
+        subdirectory if they don't exist.
+        Each image is downloaded and saved with its original filename
+        or a generated name.
+
+        Exceptions:
+            Catches and logs RequestException if image download fails.
+        """
+        os.makedirs(output_dir, exist_ok=True)
+
         img_dir = os.path.join(output_dir, "images")
         os.makedirs(img_dir, exist_ok=True)
 
-        for img in images:
+        for img in parser_images:
             img_url = img["url"]
             if not img_url:
                 continue
@@ -87,139 +242,77 @@ class ChuChuScrapper:
 
                 filename = os.path.basename(urlparse(img_url).path)
                 if not filename:
-                    filename = f"image_{images.index(img)}.jpg"
+                    filename = f"image_{parser_images.index(img)}.jpg"
 
                 filepath = os.path.join(img_dir, filename)
-                with open(filepath, "wb") as f:
+
+                with open(filepath, "wb") as file:
                     for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
+                        file.write(chunk)
+
                 print(f"Downloaded: {filename}")
-            except Exception as e:
+
+            except requests.exceptions.RequestException as e:
                 print(f"Failed to download {img_url}: {e}")
 
-    def _fetch_with_retry(self, url: str) -> Optional[str]:
-        """Fetch HTML with retry logic."""
-        for attempt in range(self.max_retries):
-            try:
-                response = self.session.get(url, timeout=self.timeout)
-                response.raise_for_status()
-                if "text/html" in response.headers.get("Content-Type", ""):
-                    return response.text
-                return None
-            except requests.exceptions.RequestException as e:
-                if attempt == self.max_retries - 1:
-                    print(f"Failed after {self.max_retries} attempts: {e}")
-                    return None
-                time.sleep(2**attempt)
-        return None
+    def save_links(self, links: list, output_dir: str):
+        """
+        Save formatted link report to a file.
 
-    class _TextParser(HTMLParser):
-        """Parser for extracting clean text content."""
+        Parameters:
+            links (List[Dict]): List of link dictionaries to save.
+            output_dir (str): Directory to save the file.
 
-        def __init__(self):
-            """Initialize the text parser."""
-            super().__init__()
-            self.text_parts = []
-            self._ignore_tags = {"script", "style", "noscript", "meta"}
-            self._current_ignore = False
-
-        def handle_starttag(self, tag: str, attrs: List[tuple]):
-            """Handle HTML start tags."""
-            if tag in self._ignore_tags:
-                self._current_ignore = True
-
-        def handle_endtag(self, tag: str):
-            """Handle HTML end tags."""
-            if tag in self._ignore_tags:
-                self._current_ignore = False
-            elif tag in ("p", "br", "div", "section"):
-                self.text_parts.append("\n")
-
-        def handle_data(self, data: str):
-            """Handle text data between tags."""
-            if not self._current_ignore and data.strip():
-                self.text_parts.append(data.strip())
-
-        def get_text(self) -> str:
-            """Return cleaned text content."""
-            text = " ".join(self.text_parts)
-            return "\n".join(line.strip() for line in text.splitlines() if line.strip())
-
-    class _HTMLParser(HTMLParser):
-        """Parser for extracting structured HTML data."""
-
-        def __init__(self, base_url: str):
-            """Initialize the HTML parser with base URL."""
-            super().__init__()
-            self.base_url = base_url
-            self.images = []
-            self._current_tag = None
-            self._current_attrs = {}
-
-        def handle_starttag(self, tag: str, attrs: List[tuple]):
-            """Handle HTML start tags and extract image data."""
-            self._current_tag = tag
-            self._current_attrs = dict(attrs)
-
-            if tag == "img":
-                img_url = self._make_absolute(self._current_attrs.get("src"))
-                if img_url:
-                    self.images.append(
-                        {
-                            "url": img_url,
-                            "alt": self._current_attrs.get("alt", ""),
-                            "attrs": self._current_attrs,
-                        }
-                    )
-
-        def _make_absolute(self, url: str) -> Optional[str]:
-            """Convert relative URLs to absolute."""
-            if not url or url.startswith(("javascript:", "mailto:", "tel:")):
-                return None
-            return urljoin(self.base_url, url)
-
-
-def save_text(content: str, output_dir: str) -> str:
-    """Save text content to file and return path."""
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "scraped_text.txt")
-    try:
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        return output_path
-    except IOError as e:
-        print(f"Error saving text: {e}")
-        return ""
+        This method creates the output directory if it doesn't exist and
+        saves the links report to 'scraped_links.txt'.
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        filepath = os.path.join(output_dir, "scraped_links.txt")
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(self.format_links_report(links))
+        print(f"Links saved to {filepath}")
 
 
 def main():
-    """Execute the main scraping workflow."""
+    """
+    Run the ChuChu scraper.
+
+    This function:
+    1. Parses command-line arguments
+    2. Creates a ChuChuScrapper instance
+    3. Executes the appropriate scraping function based on the requested type
+    4. Either prints the results to stdout or saves them to files
+
+    Returns:
+        None
+    """
     args = parse_args()
-    scraper = ChuChuScrapper()
+    chuchu_scrapper = ChuChuScrapper()
 
     if not args.stdout:
         os.makedirs(args.output, exist_ok=True)
 
-    if args.type in ["text", "all"]:
-        text_content = scraper.scrape_text(args.url)
-        if text_content:
-            if args.stdout:
-                print("\n=== SCRAPED TEXT ===\n")
-                print(text_content)
-            else:
-                path = save_text(text_content, args.output)
-                print(f"Text saved to: {path}")
+    if args.type == "text":
+        text_content = chuchu_scrapper.scrape_text(args.url)
+        if args.stdout:
+            print("\n=== Scraped Text Content ===\n")
+            print(text_content)
+        else:
+            path = chuchu_scrapper.save_text(text_content, args.output)
+            print(f"Text content saved to {path}")
 
-    if args.type in ["image", "all"]:
-        images = scraper.scrape_images(args.url)
-        if images:
-            if args.stdout:
-                print("\n=== IMAGE URLs ===\n")
-                for img in images:
-                    print(img["url"])
-            else:
-                scraper.download_images(images, args.output)
+    elif args.type == "image":
+        image_content = chuchu_scrapper.scrape_images(args.url)
+        if args.stdout:
+            print("\n=== Scraped Image Content ===\n")
+            print(image_content)
+        else:
+            chuchu_scrapper.download_images(image_content, args.output)
+            print(f"Image content saved to {args.output}")
 
-
-if __name__ == "__main__":
-    main()
+    elif args.type == "link":
+        link_content = chuchu_scrapper.scrape_links(args.url)
+        if args.stdout:
+            print(chuchu_scrapper.format_links_report(link_content))
+        else:
+            chuchu_scrapper.save_links(link_content, args.output)
