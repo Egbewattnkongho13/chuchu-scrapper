@@ -12,9 +12,9 @@ FIXTURES_PATH = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
-def sample_html():
+def sample():
     """Load sample HTML fixture for testing."""
-    with open(FIXTURES_PATH / "sample_html.html", "r", encoding="utf-8") as file:
+    with open(FIXTURES_PATH / "sample.html", "r", encoding="utf-8") as file:
         return file.read()
 
 
@@ -35,18 +35,18 @@ class TestChuChuScrapper:
         assert scrapper.max_retries == 3
         assert scrapper.session.headers["User-Agent"] == "TestAgent"
 
-    def test_fetch_with_retry_success(self, scrapper, sample_html):
+    def test_fetch_with_retry_success(self, scrapper, sample):
         """Test successful fetch with retry logic."""
         test_url = "https://example.com"
 
         with requests_mock.Mocker() as m:
             m.get(
-                test_url, text=sample_html,
+                test_url, text=sample,
                 headers={"Content-Type": "text/html; charset=utf-8"})
 
             result = scrapper._fetch_with_retry(test_url)
 
-            assert result == sample_html
+            assert result == sample
             assert m.call_count == 1
 
     def test_fetch_with_retry_failure(self, scrapper):
@@ -76,7 +76,7 @@ class TestChuChuScrapper:
             assert result is None
 
     @patch("chuchu_scrapper.scrapper.TextParser")
-    def test_scrape_text(self, mock_text_parser, scrapper, sample_html):
+    def test_scrape_text(self, mock_text_parser, scrapper, sample):
         """Test text scrapping method."""
         test_url = "https://example.com"
         expected_text = "Sample extracted text"
@@ -88,17 +88,17 @@ class TestChuChuScrapper:
         with requests_mock.Mocker() as m:
             m.get(
                 test_url,
-                text=sample_html,
+                text=sample,
                 headers={"Content-Type": "text/html; charset=utf-8"})
 
             result = scrapper.scrape_text(test_url)
 
             assert result == expected_text
-            parser_instance.feed.assert_called_once_with(sample_html)
+            parser_instance.feed.assert_called_once_with(sample)
             parser_instance.get_text.assert_called_once()
 
     @patch("chuchu_scrapper.scrapper.ImageParser")
-    def test_scrape_images(self, mock_image_parser, scrapper, sample_htmml):
+    def test_scrape_images(self, mock_image_parser, scrapper, sample):
         """Test image scrapping method."""
         test_url = "https://example.com"
         expected_images = [
@@ -113,11 +113,36 @@ class TestChuChuScrapper:
         with requests_mock.Mocker() as m:
             m.get(
                 test_url,
-                text=sample_html,
+                text=sample,
                 headers={"Content-Type": "text/html; charset=utf-8"})
 
             result = scrapper.scrape_images(test_url)
 
             assert result == expected_images
-            parser_instance.feed.assert_called_once_with(sample_html)
+            parser_instance.feed.assert_called_once_with(sample)
             mock_image_parser.assert_called_once_with(test_url)
+
+    @patch("chuchu_scrapper.scrapper.LinkParser")
+    def test_scrape_links(self, mock_link_parser, scrapper, sample):
+        """Test link scrapping method."""
+        test_url = "https://example.com"
+        expected_links = [
+            {"url": "https://example.com/page1", "title": "Page 1"},
+            {"url": "https://example.com/page2", "title": "Page 2"}
+        ]
+
+        parser_instance = MagicMock()
+        parser_instance.get_links.return_value = expected_links
+        mock_link_parser.return_value = parser_instance
+
+        with requests_mock.Mocker() as m:
+            m.get(
+                test_url,
+                text=sample,
+                headers={"Content-Type": "text/html; charset=utf-8"})
+
+            result = scrapper.scrape_links(test_url)
+
+            assert result == expected_links
+            parser_instance.feed.assert_called_once_with(sample)
+            mock_link_parser.assert_called_once_with(test_url)
