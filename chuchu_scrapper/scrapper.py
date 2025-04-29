@@ -93,7 +93,7 @@ class ChuChuScrapper:
             return None
 
         parsed = urlparse(url)
-        base_url = {parsed.scheme} + "://" + {parsed.netloc}
+        base_url = "{}://{}".format(*{parsed.scheme, parsed.netloc})
 
         linkparser = LinkParser(base_url)
         linkparser.feed(webpage_content)
@@ -169,6 +169,7 @@ class ChuChuScrapper:
         with open(filepath, "w", encoding="utf-8") as file:
             file.write(content)
         print(f"Text saved to {filepath}")
+        return filepath
 
     def download_images(self, parser_images: list, output_dir: str):
         """
@@ -226,10 +227,11 @@ class ChuChuScrapper:
             output_dir (str): Directory to save the file.
 
         This method creates the output directory if it doesn't exist and
-        saves the links report to 'scraped_links.txt'.
+        saves the links report to 'links_report.txt'.
         """
         os.makedirs(output_dir, exist_ok=True)
-        filepath = os.path.join(output_dir, "scraped_links.txt")
+        filepath = os.path.join(output_dir, "links_report.txt")
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(self.format_links_report(links))
         print(f"Links saved to {filepath}")
+        return filepath

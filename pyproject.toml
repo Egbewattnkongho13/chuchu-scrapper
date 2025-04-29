@@ -12,7 +12,7 @@ packages = [
 ]
 
 [tool.poetry.group.dev.dependencies]
-requests-mock = "^1.12.1"
+pytest = "^8.3.5"
 
 [build-system]
 requires = ["poetry-core==1.8"]
@@ -27,4 +27,4 @@ black = "^25.1.0"
 isort = "^6.0.1"
 requests = "^2.32.3"
 beautifulsoup4 = "^4.13.3"
-pytest = "^8.3.5"
+requests-mock = "^1.12.1"

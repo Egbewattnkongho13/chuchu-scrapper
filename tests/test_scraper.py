@@ -1,5 +1,5 @@
 """Tests for the ChuChuScrapper class."""
-# import os
+import os
 import pytest
 from unittest.mock import patch, MagicMock
 import requests_mock
@@ -146,3 +146,44 @@ class TestChuChuScrapper:
             assert result == expected_links
             parser_instance.feed.assert_called_once_with(sample)
             mock_link_parser.assert_called_once_with(test_url)
+
+    def test_format_links_report(self, scrapper):
+        """Test formatting of links report."""
+        links = [
+            {"url": "https://example.com/page1", "title": "Page 1"},
+            {"url": "https://example.com/page2", "title": ""}
+        ]
+
+        result = scrapper.format_links_report(links)
+
+        assert "LINK 1" in result
+        assert "URL: https://example.com/page1" in result
+        assert "Anchor: Page 1" in result
+        assert "LINK 2" in result
+        assert "URL: https://example.com/page2" in result
+        assert "Anchor: " in result
+
+    def test_save_text(self, scrapper, tmp_path):
+        """Test saving text content to file."""
+        content = "sample text content"
+        output_path = tmp_path / "output"
+
+        filepath = scrapper.save_text(content, str(output_path))
+
+        assert os.path.exists(filepath)
+        with open(filepath, "r", encoding="utf-8") as file:
+            saved_content = file.read()
+            assert saved_content == content
+
+    def test_save_links(self, scrapper, tmp_path):
+        """Test saving links to file."""
+        links = [
+            {"url": "https://example.com/page1", "title": "Page 1"},
+            {"url": "https://example.com/page2", "title": ""}
+        ]
+        output_path = tmp_path / "output"
+
+        scrapper.save_links(links, str(output_path))
+
+        filepath = output_path/"links_report.txt"
+        assert os.path.exists(filepath)
