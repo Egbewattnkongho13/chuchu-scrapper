@@ -93,7 +93,7 @@ class ChuChuScrapper:
             return None
 
         parsed = urlparse(url)
-        base_url = "{}://{}".format(*{parsed.scheme, parsed.netloc})
+        base_url = "{}://{}".format(parsed.scheme, parsed.netloc)
 
         linkparser = LinkParser(base_url)
         linkparser.feed(webpage_content)

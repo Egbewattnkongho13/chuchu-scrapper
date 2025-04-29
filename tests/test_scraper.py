@@ -187,3 +187,45 @@ class TestChuChuScrapper:
 
         filepath = output_path/"links_report.txt"
         assert os.path.exists(filepath)
+
+    @patch("requests.Session.get")
+    def test_download_images(self, mock_get, scrapper, tmp_path):
+        """Test downloading images."""
+        mock_response = MagicMock()
+        mock_response.iter_content.return_value = [b"fake image data"]
+        mock_get.return_value = mock_response
+
+        images = [
+            {"url": "https://example.com/image1.jpg", "alt": "Image 1"},
+            {"url": "https://example.com/image2.jpg", "alt": "Image 2"}
+        ]
+        output_dir = tmp_path / "output"
+
+        scrapper.download_images(images, str(output_dir))
+
+        img_dir = output_dir / "images"
+        assert os.path.exists(img_dir / "image1.jpg")
+        assert os.path.exists(img_dir / "image2.jpg")
+
+
+@pytest.fixture
+def sample_html_file(tmp_path):
+    """Create a sample HTML file for fixture."""
+    content = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Test Page</title></head>
+    <body>
+        <h1>Sample Test Page</h1>
+        <p>This is a paragraph.</p>
+        <img src="image1.jpg" alt="Image 1">
+        <img src="image2.jpg" alt="Image 2">
+        <a href="page1.html">Page 1</a>
+        <a href="page2.html">Page 2</a>
+    </body>
+    </html>
+    """
+    html_file = tmp_path / "sample_html.html"
+    with open(html_file, "w", encoding="utf-8") as f:
+        f.write(content)
+    return html_file
