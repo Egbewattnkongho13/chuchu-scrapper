@@ -18,6 +18,8 @@ class TextParser(HTMLParser):
         """Handle the start tag of the HTML element by ignoring specific tags."""
         if tag in self._ignore_tags:
             self._current_ignore = True
+        elif tag == "br":
+            self.text_content.append("\n")
 
     def handle_endtag(self, tag: str):
         """Handle the end tag of the HTML element by resetting the ignore flag."""
