@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.1.0 (2023-21-01)
+0.1.0 (2025-21-01)
 ------------------
 - **Features**
   - Created Project readme.md
