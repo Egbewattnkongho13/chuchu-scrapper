@@ -28,3 +28,6 @@ isort = "^6.0.1"
 requests = "^2.32.3"
 beautifulsoup4 = "^4.13.3"
 requests-mock = "^1.12.1"
+
+[tool.flake8]
+max-line-length = 120
