@@ -1,0 +1,7 @@
+venv
+**/__pycache__/** */
+.git
+dist/
+.git
+chuchu_scrapper/parsers/__pycache__
+tests/__pycache__

@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        additional_dependencies: [flake8-docstrings]
+        types: [python]
+        args: [--max-line-length=120]
+  - repo: local
+    hooks:
+      - id: check-lint-scrapper
+        name: Lint Scrapper
+        entry: scripts/lint-scrapper.sh
+        language: script
+        files: scripts/lint-scrapper.sh
