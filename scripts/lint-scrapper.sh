@@ -67,7 +67,7 @@ else
     run_isort_poetry
 fi
 
-popd &> /dev/null
+
 
 
 

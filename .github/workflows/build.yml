@@ -4,7 +4,7 @@ description: Build and test the ChuChuScrapper application using GitHub Actions.
 on:
   push:
     branches:
-      - main
+      -[ 'develop' , 'feature/**' ]
   pull_request:
     branches:
       - main
@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.9'
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
